@@ -1,25 +1,87 @@
-.App {
-  font-family: Arial, sans-serif;
-  text-align: center;
-  margin: 50px;
+body {
+  margin: 0;
+  padding: 0;
+  font-family: "Segoe UI", sans-serif;
+  background-color: #f5f7fa;
+  color: #333;
 }
 
-input {
+.container {
+  text-align: center;
+  padding: 40px;
+}
+
+header {
+  margin-bottom: 30px;
+}
+
+header h1 {
+  font-size: 2.5rem;
+  color: #2c3e50;
+}
+
+header p {
+  font-size: 1.1rem;
+  color: #555;
+}
+
+.upload {
+  margin: 20px auto;
+}
+
+input[type="file"] {
   margin: 10px;
 }
 
 button {
-  padding: 10px 20px;
-  background: #4caf50;
-  color: white;
+  padding: 12px 24px;
+  background-color: #007bff;
   border: none;
+  color: white;
+  font-size: 1rem;
+  border-radius: 8px;
   cursor: pointer;
 }
 
 button:hover {
-  background: #45a049;
+  background-color: #0056b3;
 }
 
 .error {
   color: red;
+  margin-top: 10px;
+}
+
+.results {
+  margin-top: 40px;
+}
+
+table {
+  margin: 0 auto;
+  width: 95%;
+  border-collapse: collapse;
+  background: white;
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow: 0 0 10px rgba(0,0,0,0.1);
+}
+
+th, td {
+  padding: 12px 15px;
+  border-bottom: 1px solid #eee;
+}
+
+th {
+  background-color: #007bff;
+  color: white;
+}
+
+.fraud {
+  background-color: #ffe6e6;
+  color: #b20000;
+}
+
+.legit {
+  background-color: #e6ffe6;
+  color: #007300;
 }

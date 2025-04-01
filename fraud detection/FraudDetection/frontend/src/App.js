@@ -4,7 +4,7 @@ import "./App.css";
 
 function App() {
   const [file, setFile] = useState(null);
-  const [result, setResult] = useState(null);
+  const [results, setResults] = useState([]);
   const [error, setError] = useState("");
 
   const handleFileChange = (e) => {
@@ -12,43 +12,64 @@ function App() {
   };
 
   const handleUpload = async () => {
-    if (!file) {
-      alert("Please select a file.");
-      return;
-    }
+    if (!file) return alert("Please select an Excel file.");
 
     const formData = new FormData();
     formData.append("file", file);
 
     try {
       const response = await axios.post("http://localhost:5000/upload", formData);
-      setResult(response.data);
+      setResults(response.data);
       setError("");
-    } catch (error) {
-      console.error("Error uploading file:", error);
-      setError("Failed to upload file");
+    } catch (err) {
+      setError(err.response?.data?.error || "Upload failed.");
+      setResults([]);
     }
   };
 
   return (
-    <div className="App">
-      <h1>Fraud Detection</h1>
-      <input type="file" onChange={handleFileChange} />
-      <button onClick={handleUpload}>Upload</button>
+    <div className="container">
+      <header>
+        <h1>💰 AML Fraud Detection System</h1>
+        <p>Analyze transaction data for potential money laundering in seconds.</p>
+      </header>
 
-      {error && <p className="error">{error}</p>}
+      <section className="upload">
+        <input type="file" accept=".xlsx" onChange={handleFileChange} />
+        <button onClick={handleUpload}>Upload & Analyze</button>
+        {error && <p className="error">{error}</p>}
+      </section>
 
-      {result && (
-        <div>
-          <h2>Results:</h2>
-          <ul>
-            {result.map((item, index) => (
-              <li key={index}>
-                Transaction {item.transaction}: {item.fraud ? "Fraud" : "Legit"}
-              </li>
-            ))}
-          </ul>
-        </div>
+      {results.length > 0 && (
+        <section className="results">
+          <h2>🔍 Analysis Results</h2>
+          <table>
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>From Bank</th>
+                <th>To Bank</th>
+                <th>Amount</th>
+                <th>Currency</th>
+                <th>Format</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {results.map((tx, i) => (
+                <tr key={i} className={tx.fraud ? "fraud" : "legit"}>
+                  <td>{tx.transaction}</td>
+                  <td>{tx.from_bank}</td>
+                  <td>{tx.to_bank}</td>
+                  <td>${tx.amount?.toFixed(2)}</td>
+                  <td>{tx.received_currency}</td>
+                  <td>{tx.payment_format}</td>
+                  <td>{tx.fraud ? "🚨 Fraudulent" : "✅ Legitimate"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </section>
       )}
     </div>
   );

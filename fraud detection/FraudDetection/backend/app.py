@@ -2,113 +2,43 @@ from flask import Flask, request, jsonify
 from flask_cors import CORS
 import pandas as pd
 import pickle
-import os
-
-# Try to import pipeline module (optional). If unavailable, app will continue to work.
-try:
-    import Pipeline as pipeline_module
-    process_transaction = getattr(pipeline_module, 'process_transaction', None)
-    send_sms_only = getattr(pipeline_module, 'send_sms_only', None)
-    PIPELINE_AVAILABLE = process_transaction is not None
-except (ImportError, ModuleNotFoundError):
-    process_transaction = None
-    send_sms_only = None
-    PIPELINE_AVAILABLE = False
 
 app = Flask(__name__)
 
-# Enable CORS for all routes
-CORS(app)
+# Load the trained XGBClassifier model
+model = joblib.load("xgb_model.pkl")
 
-# Load the Model
-model = pickle.load(open('model_rndf.pkl', 'rb'))
+# Features used during training
+features = [
+    'amount_paid', 'sender_bank', 'receiver_bank', 'receiving_currency',
+    'payment_currency', 'payment_format', 'transaction_difference',
+    'transaction_difference_percentage', 'log_amount_received', 'log_amount_paid',
+    'rolling_mean_amount_7d', 'rolling_std_amount_7d', 'hour', 'day_of_week',
+    'is_weekend', 'num_transactions_30d', 'avg_transaction_30d',
+    'degree_centrality', 'pagerank_score', 'cross_currency_transaction',
+    'time_diff', 'is_burst', 'z_score_amount', 'is_anomalous_amount',
+    'is_circular', 'currency_arbitrage'
+] + [f"gnn_embedding_{i}" for i in range(1, 17)]
 
 @app.route('/upload', methods=['POST'])
 def upload_file():
-    """Handles file upload and fraud detection."""
     if 'file' not in request.files:
-        return jsonify({"error": "No file part"})
-    
-    file = request.files['file']
+        return jsonify({"error": "No file part"}), 400
 
+    file = request.files['file']
     if file.filename == '':
         return jsonify({"error": "No file selected"})
     
     df = pd.read_csv(file)
     
-    # Model expects only 2 features: 'amount' and 'time'
-    # Map common column names to these expected features
-    amount_col = None
-    time_col = None
+    # Prepare data for model
+    data = df.values.tolist()
     
-    # Find amount column (try common names)
-    for col in df.columns:
-        col_lower = col.lower()
-        if 'amount' in col_lower and amount_col is None:
-            amount_col = col
-            break
-    
-    # Find time column — prefer Hour, Day, or similar numeric time columns over Timestamp
-    for col in df.columns:
-        col_lower = col.lower()
-        if col_lower in ['hour', 'day', 'minute', 'time']:
-            time_col = col
-            break
-    # If no numeric time column found, try to extract hour from Timestamp
-    if time_col is None and 'Timestamp' in df.columns:
-        df['Hour'] = pd.to_datetime(df['Timestamp'], errors='coerce').dt.hour
-        time_col = 'Hour'
-    
-    if amount_col is None or time_col is None:
-        return jsonify({
-            'error': f'CSV must contain amount and time columns. Found: {df.columns.tolist()}'
-        }), 400
-    
-    # Prepare data with only the 2 required features, ensure they are numeric
-    df_subset = df[[amount_col, time_col]].copy()
-    df_subset[amount_col] = pd.to_numeric(df_subset[amount_col], errors='coerce')
-    df_subset[time_col] = pd.to_numeric(df_subset[time_col], errors='coerce')
-    
-    # Drop rows with NaN values
-    df_subset = df_subset.dropna()
-    
-    if df_subset.empty:
-        return jsonify({'error': 'No valid numeric data found in amount and time columns'}), 400
-    
-    data = df_subset.values.tolist()
-
     # Predict
     predictions = model.predict(data)
-
-    # Try to get fraud probabilities if model supports it
-    fraud_probas = None
-    try:
-        if hasattr(model, 'predict_proba'):
-            fraud_probas = model.predict_proba(data)[:, 1]
-    except Exception:
-        fraud_probas = None
-
-    result = []
-    # Iterate rows and, if pipeline is available, process each transaction
-    for i, pred in enumerate(predictions):
-        fraud_flag = int(bool(pred))
-        prob = float(fraud_probas[i]) if fraud_probas is not None else None
-
-        pipeline_info = None
-        if PIPELINE_AVAILABLE and process_transaction is not None:
-            try:
-                tx = df.iloc[i].to_dict()
-                pipeline_info = process_transaction(tx, fraud_flag, fraud_probability=prob)
-            except Exception as e:
-                pipeline_info = {'error': f'pipeline failure: {e}'}
-
-        result.append({
-            'transaction': i+1,
-            'fraud': bool(pred),
-            'fraud_probability': prob,
-            'pipeline': pipeline_info
-        })
-
+    
+    result = [{'transaction': i+1, 'fraud': bool(pred)} for i, pred in enumerate(predictions)]
+    
     return jsonify(result)
 
 @app.route('/test', methods=['GET'])

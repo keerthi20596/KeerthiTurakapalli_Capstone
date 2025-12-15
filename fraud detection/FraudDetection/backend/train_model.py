@@ -4,14 +4,25 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import train_test_split
 import pickle
 
-# Generate sample data
-np.random.seed(42)
-data = {
-    "amount": np.random.randint(10, 1000, 1000),
-    "time": np.random.randint(0, 86400, 1000),
-    "is_fraud": np.random.choice([0, 1], 1000, p=[0.95, 0.05])
-}
 
+# Generate a larger, more realistic dataset with clear fraud rules
+np.random.seed(42)
+num_samples = 5000
+amounts = np.random.randint(10, 2000, num_samples)
+# time in seconds since midnight (0-86399)
+times = np.random.randint(0, 86400, num_samples)
+
+# Define fraud: (high amount AND suspicious hour) OR very high amount
+# Convert seconds to hours
+hours = (times / 3600).astype(int) % 24
+# Fraud if: (amount > 1200 AND hour between 22-4) OR (amount > 1800)
+is_fraud = (((amounts > 1200) & ((hours >= 22) | (hours <= 4))) | (amounts > 1800)).astype(int)
+
+data = {
+    "amount": amounts,
+    "time": times,
+    "is_fraud": is_fraud
+}
 df = pd.DataFrame(data)
 
 # Train model

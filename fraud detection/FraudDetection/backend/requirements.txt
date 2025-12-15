@@ -1,3 +1,6 @@
 flask
 pandas
-pickle5
+scikit-learn
+flask-cors
+joblib
+numpy
